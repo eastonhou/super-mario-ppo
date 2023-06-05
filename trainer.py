@@ -149,4 +149,4 @@ class Loss(nn.Module):
 
 if __name__ == '__main__':
     ppo = PPO(games.create_mario_profile, dict(world=1, stage=1))
-    ppo.train('cpu')
+    ppo.train('cuda')
