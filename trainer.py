@@ -18,6 +18,7 @@ class PPO:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
         self.criterion = Loss()
         self.logger = utils.MetricLogger(gcutils.join(self.folder, 'log.txt'))
+        self.renderer = environment.FrameRenderer()
         self._load()
 
     def train(self, device):
@@ -26,6 +27,7 @@ class PPO:
         env = environment.MultiTrainEnv(self.game_creator, self.game_arguments, functools.partial(self._sample, device=device))
         while True:
             self.logger.new_epoch()
+            self._eval_epoch(device)
             self._train_epoch(env, 100, device)
             self._eval_epoch(device)
             self.logger.end_epoch(self.epoch)
@@ -74,7 +76,7 @@ class PPO:
     def _eval_epoch(self, device):
         self.model.eval()
         video_path = gcutils.join(self.folder, 'video', f'{self.epoch}.avi')
-        env = environment.create_evaluate_env(self.game, video_path, self.skip)
+        env = environment.create_evaluate_env(self.game, video_path, self.skip, self.renderer)
         state = env.reset()
         while True:
             action = self._sample(state, device)
@@ -85,15 +87,18 @@ class PPO:
     def _game_finished(self, info):
         return info['state'] in ['success', 'fail']
 
+    @torch.inference_mode()
     def _sample(self, state, device=None):
         if self.model.training and np.random.ranf() < max(0.97 ** self.epoch, 0.1):
             action = np.random.choice(self.action_space)
         else:
             state = torch.tensor(state[None, ...], device=device)
-            logits, _ = self.model(state)
+            logits, value = self.model(state)
             logits = logits[0].softmax(-1)
             action = torch.multinomial(logits, 1, True)
+            #action = logits.argmax(-1)
             action = action.item()
+            self.renderer.update(logits.cpu().numpy(), value.item())
         return action
 
     def _load(self):

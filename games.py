@@ -37,8 +37,8 @@ class MarioReward(gym.Wrapper):
                 info['state'] = 'fail'
         else:
             info['state'] = 'playing'
-        reward += (info['x_pos'] - self.current_x) / 10
-        reward -= (self.cur_time - info['time']) / 20
+        reward += (info['x_pos'] - self.current_x)
+        #reward -= (self.cur_time - info['time']) / 20
         self.cur_time = info['time']
         self.current_x = info['x_pos']
         self.curr_score = info['score']

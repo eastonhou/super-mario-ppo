@@ -58,19 +58,54 @@ class FrameConverter(gym.Wrapper):
         return state
 
 class Recorder(gym.Wrapper):
-    def __init__(self, env, saved_path):
+    def __init__(self, env, saved_path, render_callback=None):
         super().__init__(env)
         height, width, _ = self.observation_space.shape
         gcutils.ensure_folder(saved_path)
         self.video = cv2.VideoWriter(str(saved_path), 0, 24, (width, height))
+        self.render_callback = render_callback
 
     def record(self, image):
-        self.video.write(image[..., ::-1])
+        image = image[..., ::-1].copy()
+        if self.render_callback is not None:
+            self.render_callback(image)
+        self.video.write(image)
 
     def step(self, action):
         state, *others = super().step(action)
         self.record(state)
         return state, *others
+
+class FrameRenderer:
+    def __init__(self) -> None:
+        self.action_prob = None
+        self.value = None
+
+    def update(self, action_prob, value):
+        self.action_prob = action_prob
+        self.value = value
+
+    def __call__(self, image):
+        if self.action_prob is None or self.value is None: return
+        x0 = 5
+        y0 = 5
+        self._render_action_probs(image, x0, y0)
+        self._render_value(image, x0, y0 + 40)
+
+    def _render_action_probs(self, image, x0, y0):
+        slot_width = 16
+        slot_height = 30
+        pts = []
+        for k, prob in enumerate(self.action_prob):
+            x1, y1 = x0 + k * slot_width, y0
+            x2, y2 = x1 + slot_width, y1 + slot_height
+            pts.append([x1, y1, x2, y2])
+            cv2.rectangle(image, (x1, y1 + int(slot_height * (1 - prob))), (x2, y2), (0, 128, 255), cv2.FILLED)
+        for x1, y1, x2, y2 in pts:
+            cv2.rectangle(image, (x1, y1), (x2, y2), (255, 0, 0), 2)
+
+    def _render_value(self, image, x0, y0):
+        cv2.putText(image, f'value: {self.value:>.2F}', (x0, y0), cv2.FONT_HERSHEY_SIMPLEX, 0.3, color=(255, 0, 0))
 
 def create_train_env(env, skip=4):
     env = FrameStack(env, num_stack=skip)
@@ -79,8 +114,8 @@ def create_train_env(env, skip=4):
     env = Replay(env)
     return env
 
-def create_evaluate_env(env, monitor_path, skip=4):
-    env = Recorder(env, monitor_path)
+def create_evaluate_env(env, monitor_path, skip=4, render_callback=None):
+    env = Recorder(env, monitor_path, render_callback)
     env = FrameStack(env, num_stack=skip)
     env = SkipFrame(env, skip=skip)
     env = FrameConverter(env, NORM_IMAGE_SIZE)
@@ -135,9 +170,10 @@ class MultiTrainEnv:
         while len(self.queue) == self.max_size: time.sleep(0.5)
         self.queue.append(item)
 
-    def _random_size(self, samples, min_size=30, max_size=500):
+    def _random_size(self, samples, min_size=20, max_size=300):
         start = np.random.randint(0, max(len(samples) - min_size, 0) + 1)
-        return samples[start:start+max_size]
+        size = np.random.randint(min_size, max_size + 1)
+        return samples[start:start+size]
 
 def run_parallel(target, *args):
     import threading
