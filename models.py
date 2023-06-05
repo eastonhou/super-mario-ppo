@@ -13,6 +13,7 @@ class MarioNet(nn.Module):
             nn.Linear(3200, 512), nn.LayerNorm(512))
         self.critic_linear = nn.Linear(512, 1)
         self.actor_linear = nn.Linear(512, num_actions)
+        self.rewards = -100000
 
     def forward(self, input):
         hidden = self.layers(input.float())
@@ -22,9 +23,11 @@ class MarioNet(nn.Module):
     def load(self, path):
         ckpt = torch.load(path, map_location=lambda storage, location: storage)
         self.load_state_dict(ckpt['model'])
+        self.rewards = ckpt['rewards']
         return ckpt
 
     def save(self, path, **kwargs):
         ckpt = {'model': self.state_dict()}
         ckpt.update(kwargs)
         torch.save(ckpt, path)
+        self.rewards = kwargs['rewards']

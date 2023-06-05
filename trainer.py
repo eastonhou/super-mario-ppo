@@ -1,16 +1,16 @@
 import torch, os, tqdm
 import numpy as np
-import environment, models, utils
+import environment, models, utils, games
 from torch import nn
 from galois_common import gcutils
 
 class PPO:
-    def __init__(self, world, stage) -> None:
+    def __init__(self, game) -> None:
         self.skip = 4
-        self.world, self.stage = world, stage
-        self.folder = gcutils.join('checkpoints', f'general')
+        self.game = game
+        self.folder = gcutils.join('checkpoints', game.spec.name)
         gcutils.mkdir(self.folder)
-        self.train_env = environment.create_train_env(world, stage, self.skip)
+        self.train_env = environment.create_train_env(self.game, self.skip)
         self.model = models.MarioNet(self.skip, self.train_env.action_space.n)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
         self.criterion = Loss()
@@ -24,9 +24,13 @@ class PPO:
             self.logger.new_epoch()
             self._train_epoch(100, device)
             self._eval_epoch(device)
-            self._save()
             self.logger.end_epoch(self.epoch)
-            self.epoch += 1
+            if self.logger.rewards > self.model.rewards:
+                self._save()
+                self.epoch += 1
+                print(f'MODEL SAVED [reward={self.model.rewards:>.2F}]')
+            else:
+                print(f'MODEL CONTINUE [reward={self.logger.rewards:>.2F}/{self.model.rewards:>.2F}]')
 
     def _train_epoch(self, rounds, device):
         self.model.train()
@@ -62,6 +66,7 @@ class PPO:
             action = self._sample(env, state, device)
             state, info = env.collect(state, action)
             if self._game_finished(info): break
+            if len(env.memory) >= 1000: break
         start = np.random.randint(0, max(len(env.memory) - min_length, 0) + 1)
         return env.memory[start:start+max_length]
 
@@ -75,7 +80,7 @@ class PPO:
     def _eval_epoch(self, device):
         self.model.eval()
         video_path = gcutils.join(self.folder, 'video', f'{self.epoch}.avi')
-        env = environment.create_evaluate_env(self.world, self.stage, video_path, self.skip)
+        env = environment.create_evaluate_env(self.game, video_path, self.skip)
         state = env.reset()
         while True:
             action = self._sample(env, state, device)
@@ -106,7 +111,7 @@ class PPO:
 
     def _save(self):
         path = gcutils.join(self.folder, 'model.ckpt')
-        self.model.save(path, epoch=self.epoch)
+        self.model.save(path, epoch=self.epoch, rewards=self.logger.rewards)
 
 class Loss(nn.Module):
     def __init__(self, gamma=1, lmbda=0.95, epsilon=0.2, beta=0.01) -> None:
@@ -140,5 +145,5 @@ class Loss(nn.Module):
         return R, advantages, ref_log_prob
 
 if __name__ == '__main__':
-    ppo = PPO(1, 1)
+    ppo = PPO(games.create_mario_profile(1, 1))
     ppo.train('cuda')

@@ -16,7 +16,7 @@
             "name": "mario",
             "type": "python",
             "request": "launch",
-            "program": "${workspaceFolder}/mario-ppo.py",
+            "program": "${workspaceFolder}/trainer.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }

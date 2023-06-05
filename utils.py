@@ -17,10 +17,13 @@ class MetricLogger:
         self.ep_losses = []
 
     def end_epoch(self, epoch):
-        message = f'[epoch {epoch}] loss={np.mean(self.ep_losses):>.2F} reward={np.mean(self.ep_rewards):>.2F} step={len(self.ep_rewards)}'
+        message = f'[epoch {epoch}] loss={np.mean(self.ep_losses):>.2F} reward={self.rewards:>.2F} step={len(self.ep_rewards)}'
         lines = list(gcutils.read_all_lines(self.path))
         lines.append(message)
         gcutils.write_all_lines(self.path, lines)
+
+    @property
+    def rewards(self): return sum(self.ep_rewards)
 
 class Monitor:
     def __init__(self, width, height, saved_path):

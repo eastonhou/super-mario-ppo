@@ -1,8 +1,6 @@
-from typing import Tuple
-import gym, gym_super_mario_bros, cv2
+import gym, cv2
 import numpy as np
 from gym.core import Env
-from nes_py.wrappers import JoypadSpace
 from gym.wrappers import FrameStack
 from galois_common import gcutils
 
@@ -20,42 +18,6 @@ class SkipFrame(gym.Wrapper):
             total_reward += reward
             if done: break
         return obs, total_reward, done, trunk, info
-
-class CustomReward(gym.Wrapper):
-    def __init__(self, env=None, world=None, stage=None):
-        super().__init__(env)
-        self.curr_score = 0
-        self.current_x = 40
-        self.status = 'small'
-        self.world = world
-        self.stage = stage
-
-    def step(self, action):
-        state, reward, done, trunk, info = self.env.step(action)
-        reward += (info['score'] - self.curr_score) / 40
-        self.curr_score = info['score']
-        if self.status == 'small' and info['status'] == 'big': reward += 20
-        elif self.status == 'big' and info['status'] == 'small': reward -= 20
-        self.status = info['status']
-        if done:
-            if info['flag_get']:
-                reward += 50
-                info['state'] = 'success'
-                del info['flag_get']
-            else:
-                reward -= 50
-                info['state'] = 'fail'
-        else:
-            info['state'] = 'playing'
-        reward += (info['x_pos'] - self.current_x) / 10
-        self.current_x = info['x_pos']
-        return state, reward / 10, info
-
-    def reset(self):
-        self.curr_score = 0
-        self.current_x = 40
-        self.status = 'small'
-        return self.env.reset()
 
 class Replay(gym.Wrapper):
     def __init__(self, env: Env):
@@ -87,7 +49,7 @@ class FrameConverter(gym.Wrapper):
         return self._convert_frame(state)
 
     def step(self, action):
-        state, reward, info = super().step(action)
+        state, reward, _, _, info = super().step(action)
         state = self._convert_frame(state)
         return state, reward, info
 
@@ -110,26 +72,16 @@ class Recorder(gym.Wrapper):
         self.record(state)
         return state, *others
 
-action_list = [['NOOP'], ['left'], ['right'], ['right', 'A'], ['right', 'B'], ['right', 'A', 'B']]
-def _create_base_env(world, stage):
-    env = gym_super_mario_bros.make(f'SuperMarioBros-{world}-{stage}-v0', render_mode='rgb', apply_api_compatibility=True)
-    env = JoypadSpace(env, action_list)
-    return env
-
-def create_train_env(world, stage, skip=4):
-    env = _create_base_env(world, stage)
+def create_train_env(env, skip=4):
     env = FrameStack(env, num_stack=skip)
     env = SkipFrame(env, skip=skip)
-    env = CustomReward(env, world, stage)
     env = FrameConverter(env, NORM_IMAGE_SIZE)
     env = Replay(env)
     return env
 
-def create_evaluate_env(world, stage, monitor_path, skip=4):
-    env = _create_base_env(world, stage)
+def create_evaluate_env(env, monitor_path, skip=4):
     env = Recorder(env, monitor_path)
     env = FrameStack(env, num_stack=skip)
     env = SkipFrame(env, skip=skip)
-    env = CustomReward(env, world, stage)
     env = FrameConverter(env, NORM_IMAGE_SIZE)
     return env
