@@ -152,7 +152,7 @@ class MultiTrainEnv:
         while True:
             ready, _ = gcutils.when_any(tasks)
             for id, (state, info) in ready:
-                if info['state'] in ['success', 'fail'] or info['time'] < 200:
+                if info['state'] == 'done':
                     samples = ray.get(self.envs[id].collect.remote())
                     samples = self._random_size(samples)
                     self.put(samples)

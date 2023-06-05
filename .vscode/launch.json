@@ -13,7 +13,7 @@
             "justMyCode": true
         },
         {
-            "name": "mario",
+            "name": "ppo",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/trainer.py",

@@ -30,11 +30,11 @@ class MarioReward(gym.Wrapper):
         if done:
             if info['flag_get']:
                 reward += 5000
-                info['state'] = 'success'
+                info['state'] = 'done'
                 del info['flag_get']
             else:
                 reward -= 5000
-                info['state'] = 'fail'
+                info['state'] = 'done'
         else:
             info['state'] = 'playing'
         reward += (info['x_pos'] - self.current_x)
@@ -45,9 +45,27 @@ class MarioReward(gym.Wrapper):
         self.status = info['status']
         return reward
 
+class BreakoutReward(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+
+    def step(self, action):
+        state, reward, done, trunk, info = self.env.step(action)
+        if done: info['state'] = 'done'
+        else: info['state'] = 'playing'
+        return state, reward, done, trunk, info
+
 def create_mario_profile(world, stage):
-    action_list = [['NOOP'], ['A', 'B'], ['left', 'B'], ['left', 'A', 'B'], ['right', 'B'], ['right', 'A', 'B']]
+    from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+    #action_list = [['NOOP'], ['A', 'B'], ['left', 'B'], ['left', 'A', 'B'], ['right', 'B'], ['right', 'A', 'B']]
     env = gym_super_mario_bros.make(f'SuperMarioBros-{world}-{stage}-v0', render_mode='rgb', apply_api_compatibility=True)
-    env = JoypadSpace(env, action_list)
+    env = JoypadSpace(env, SIMPLE_MOVEMENT)
     env = MarioReward(env, world, stage)
+    return env
+
+def create_breakout():
+    #action_space = [['NOOP'], ['LEFT'], ['RIGHT'], ['FIRE']]
+    env = gym.make('ALE/Breakout-v5')
+    env = BreakoutReward(env)
+    #env = JoypadSpace(env, action_space)
     return env

@@ -27,7 +27,6 @@ class PPO:
         env = environment.MultiTrainEnv(self.game_creator, self.game_arguments, functools.partial(self._sample, device=device))
         while True:
             self.logger.new_epoch()
-            self._eval_epoch(device)
             self._train_epoch(env, 100, device)
             self._eval_epoch(device)
             self.logger.end_epoch(self.epoch)
@@ -78,14 +77,14 @@ class PPO:
         video_path = gcutils.join(self.folder, 'video', f'{self.epoch}.avi')
         env = environment.create_evaluate_env(self.game, video_path, self.skip, self.renderer)
         state = env.reset()
-        while True:
+        for _ in range(1000):
             action = self._sample(state, device)
             state, reward, info = env.step(action)
             self.logger.eval_step(reward)
             if self._game_finished(info): break
 
     def _game_finished(self, info):
-        return info['state'] in ['success', 'fail']
+        return info['state'] == 'done'
 
     @torch.inference_mode()
     def _sample(self, state, device=None):
@@ -145,5 +144,6 @@ class Loss(nn.Module):
 
 if __name__ == '__main__':
     opts = options.make_options(device='cuda')
-    ppo = PPO(games.create_mario_profile, dict(world=1, stage=1))
+    #ppo = PPO(games.create_mario_profile, dict(world=1, stage=1))
+    ppo = PPO(games.create_breakout, {})
     ppo.train(opts.device)
