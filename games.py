@@ -24,17 +24,17 @@ class MarioReward(gym.Wrapper):
         return state, info
 
     def _compute_reward(self, reward, done, info):
+        '''
         reward += info['score'] - self.curr_score
         if self.status == 'small' and info['status'] == 'big': reward += 2000
         elif self.status == 'big' and info['status'] == 'small': reward -= 2000
         if done:
             if info['flag_get']:
                 reward += 5000
-                info['state'] = 'done'
                 del info['flag_get']
             else:
                 reward -= 5000
-                info['state'] = 'done'
+            info['state'] = 'done'
         else:
             info['state'] = 'playing'
         reward += (info['x_pos'] - self.current_x)
@@ -44,6 +44,19 @@ class MarioReward(gym.Wrapper):
         self.curr_score = info['score']
         self.status = info['status']
         return reward
+        '''
+        reward += (info["score"] - self.curr_score) / 40.
+        self.curr_score = info["score"]
+        if done:
+            if info["flag_get"]:
+                reward += 50
+            else:
+                reward -= 50
+            info['state'] = 'done'
+        else:
+            info['state'] = 'playing'
+        self.current_x = info["x_pos"]
+        return reward / 10
 
 class BreakoutReward(gym.Wrapper):
     def __init__(self, env):

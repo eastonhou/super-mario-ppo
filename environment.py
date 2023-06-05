@@ -4,7 +4,7 @@ from gym.core import Env
 from gym.wrappers import FrameStack
 from galois_common import gcutils
 
-NORM_IMAGE_SIZE = (160, 160)
+NORM_IMAGE_SIZE = (84, 84)
 
 class SkipFrame(gym.Wrapper):
     def __init__(self, env, skip):
@@ -31,6 +31,7 @@ class Replay(gym.Wrapper):
             'action': action,
             'reward': reward,
             'next_state': next_state,
+            'count': len(self.memory) + 1,
             'info': info
         })
         return next_state, info
@@ -132,7 +133,7 @@ class TrainEnv:
         return self.id, self.env.collect(state, action)
 
     def reset(self):
-        return self.id, (self.env.reset(), {'state': 'reset', 'time': 400})
+        return self.id, (self.env.reset(), {'state': 'reset'})
 
     def collect(self):
         return self.env.memory
@@ -172,8 +173,7 @@ class MultiTrainEnv:
 
     def _random_size(self, samples, min_size=20, max_size=300):
         start = np.random.randint(0, max(len(samples) - min_size, 0) + 1)
-        size = np.random.randint(min_size, max_size + 1)
-        return samples[start:start+size]
+        return samples[start:start+max_size]
 
 def run_parallel(target, *args):
     import threading

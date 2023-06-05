@@ -41,21 +41,22 @@ class PPO:
         self.model.train()
         tq = tqdm.tqdm(range(rounds))
         for _ in tq:
-            ref_model = self._create_reference_model(device)
+            #ref_model = self._create_reference_model(device)
             samples = env.get()
-            states = torch.tensor(np.stack([x['state'] for x in samples], 0), device=device)
+            last_state = samples[-1]['next_state']
+            states = torch.tensor(np.stack([x['state'] for x in samples] + [last_state], 0), device=device)
             actions = [x['action'] for x in samples]
             rewards = torch.tensor([x['reward'] for x in samples], device=device)
             with torch.no_grad():
-                ref_logits, ref_values = ref_model(states)
+                ref_logits, ref_values = self.model(states)
                 R, advantages, ref_log_probs = self.criterion.precomute(ref_logits, ref_values, actions, rewards)
-            loss = self._offline(states, R, advantages, ref_log_probs, actions, rewards)
+            loss = self._offline(states[:-1], R, advantages, ref_log_probs, actions, rewards)
             tq.desc = f'[{loss:>.2F}]'
             self.logger.train_step(loss)
 
     def _offline(self, states, R, advantages, ref_log_probs, actions, rewards):
         total_loss = 0
-        for _ in range(4):
+        for _ in range(10):
             logits, values = self.model(states)
             loss = self.criterion(R, advantages, ref_log_probs, logits, values, actions, rewards)
             self.optimizer.zero_grad()
@@ -88,16 +89,13 @@ class PPO:
 
     @torch.inference_mode()
     def _sample(self, state, device=None):
-        if self.model.training and np.random.ranf() < max(0.97 ** self.epoch, 0.1):
-            action = np.random.choice(self.action_space)
-        else:
-            state = torch.tensor(state[None, ...], device=device)
-            logits, value = self.model(state)
-            logits = logits[0].softmax(-1)
-            action = torch.multinomial(logits, 1, True)
-            #action = logits.argmax(-1)
-            action = action.item()
-            self.renderer.update(logits.cpu().numpy(), value.item())
+        state = torch.tensor(state[None, ...], device=device)
+        logits, value = self.model(state)
+        logits = logits[0].softmax(-1)
+        action = torch.multinomial(logits, 1, True)
+        #action = logits.argmax(-1)
+        action = action.item()
+        self.renderer.update(logits.cpu().numpy(), value.item())
         return action
 
     def _load(self):
@@ -124,26 +122,26 @@ class Loss(nn.Module):
     def forward(self, R, advantages, ref_log_probs, logits, values, actions, rewards):
         n = ref_log_probs.shape[0]
         new_log_probs = logits.log_softmax(-1)
-        ratio = (new_log_probs[torch.arange(n), actions[:n]] - ref_log_probs).exp()
+        ratio = (new_log_probs[torch.arange(n), actions] - ref_log_probs).exp()
         actor_loss = -torch.min(
             ratio.mul(advantages),
             torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon).mul(advantages)).mean()
         #critic_loss = (R.sub(values[:n]) ** 2).mean()
-        critic_loss = nn.functional.smooth_l1_loss(R, values[:n], reduction='mean')
+        critic_loss = nn.functional.smooth_l1_loss(R, values, reduction='mean')
         entropy_loss = -new_log_probs.exp().mul(new_log_probs).sum(-1).mean()
         loss = actor_loss + critic_loss - self.beta * entropy_loss
         return loss
 
     def precomute(self, ref_logits, ref_values, actions, rewards):
         n = ref_values.shape[0] - 1
-        delta = rewards[:-1] + self.gamma * ref_values[1:] - ref_values[:-1]
+        delta = rewards + self.gamma * ref_values[1:] - ref_values[:-1]
         R = delta[None, :].mul(self.coef[:n, :n]).sum(-1)
         advantages = R - ref_values[:-1]
-        ref_log_prob = ref_logits.log_softmax(-1)[torch.arange(n), actions[:n]]
+        ref_log_prob = ref_logits.log_softmax(-1)[torch.arange(n), actions]
         return R, advantages, ref_log_prob
 
 if __name__ == '__main__':
     opts = options.make_options(device='cuda')
-    #ppo = PPO(games.create_mario_profile, dict(world=1, stage=1))
-    ppo = PPO(games.create_breakout, {})
+    ppo = PPO(games.create_mario_profile, dict(world=1, stage=1))
+    #ppo = PPO(games.create_breakout, {})
     ppo.train(opts.device)
