@@ -88,8 +88,7 @@ class FrameRenderer:
 
     def __call__(self, image):
         if self.action_prob is None or self.value is None: return
-        x0 = 5
-        y0 = 5
+        x0, y0 = 5, 5
         self._render_action_probs(image, x0, y0)
         self._render_value(image, x0, y0 + 40)
 

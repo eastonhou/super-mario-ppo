@@ -1,18 +1,20 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 class GameModel(nn.Module):
-    def __init__(self, num_inputs, num_actions):
+    def __init__(self, num_inputs, num_actions) -> None:
         super().__init__()
-        self.conv1 = nn.Conv2d(num_inputs, 32, 3, stride=2, padding=1)
-        self.conv2 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
-        self.conv3 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
-        self.conv4 = nn.Conv2d(32, 32, 3, stride=2, padding=1)
-        self.linear = nn.Linear(32 * 6 * 6, 512)
+        self.layers = nn.Sequential(
+            nn.Conv2d(num_inputs, 32, 3, stride=2, padding=1), nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, 3, stride=2, padding=1), nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, 3, stride=2, padding=1), nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, 3, stride=2, padding=1), nn.ReLU(inplace=True),
+            nn.Flatten(),
+            nn.Linear(1152, 512), nn.ReLU(inplace=True))
         self.critic_linear = nn.Linear(512, 1)
         self.actor_linear = nn.Linear(512, num_actions)
         self._initialize_weights()
+        self.rewards = -100000
 
     def _initialize_weights(self):
         for module in self.modules():
@@ -20,14 +22,10 @@ class GameModel(nn.Module):
                 nn.init.orthogonal_(module.weight, nn.init.calculate_gain('relu'))
                 nn.init.constant_(module.bias, 0)
 
-    def forward(self, x):
-        x = x.float().div(255)
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x = F.relu(self.conv4(x))
-        x = self.linear(x.view(x.size(0), -1))
-        return self.actor_linear(x), self.critic_linear(x).view(-1)
+    def forward(self, input):
+        hidden = self.layers(input.float().div(255))
+        logits, critic = self.actor_linear(hidden), self.critic_linear(hidden)
+        return logits, critic.view(-1)
 
     def load(self, path):
         ckpt = torch.load(path, map_location=lambda storage, location: storage)

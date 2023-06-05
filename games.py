@@ -24,29 +24,9 @@ class MarioReward(gym.Wrapper):
         return state, info
 
     def _compute_reward(self, reward, done, info):
-        '''
-        reward += info['score'] - self.curr_score
-        if self.status == 'small' and info['status'] == 'big': reward += 2000
-        elif self.status == 'big' and info['status'] == 'small': reward -= 2000
-        if done:
-            if info['flag_get']:
-                reward += 5000
-                del info['flag_get']
-            else:
-                reward -= 5000
-            info['state'] = 'done'
-        else:
-            info['state'] = 'playing'
-        reward += (info['x_pos'] - self.current_x)
-        #reward -= (self.cur_time - info['time']) / 20
-        self.cur_time = info['time']
-        self.current_x = info['x_pos']
-        self.curr_score = info['score']
-        self.status = info['status']
-        return reward
-        '''
-        reward += (info["score"] - self.curr_score) / 40.
-        self.curr_score = info["score"]
+        reward += (info["score"] - self.curr_score) / 20
+        if self.status == 'small' and info['status'] == 'big': reward += 20
+        elif self.status == 'big' and info['status'] == 'small': reward -= 20
         if done:
             if info["flag_get"]:
                 reward += 50
@@ -55,19 +35,30 @@ class MarioReward(gym.Wrapper):
             info['state'] = 'done'
         else:
             info['state'] = 'playing'
-        self.current_x = info["x_pos"]
+        self.cur_time = info['time']
+        self.current_x = info['x_pos']
+        self.curr_score = info['score']
+        self.status = info['status']
         return reward / 10
 
 class BreakoutReward(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
+        self.lives = 0
 
     def step(self, action):
         state, reward, done, trunk, info = self.env.step(action)
         if done: info['state'] = 'done'
         else: info['state'] = 'playing'
+        reward += (info['lives'] - self.lives) * 0.5
+        self.lives = info['lives']
         return state, reward, done, trunk, info
 
+    def reset(self):
+        state, info = super().reset()
+        self.lives = info['lives']
+        return state, info
+    
 def create_mario_profile(world, stage):
     from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
     #action_list = [['NOOP'], ['A', 'B'], ['left', 'B'], ['left', 'A', 'B'], ['right', 'B'], ['right', 'A', 'B']]
