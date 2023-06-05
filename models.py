@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-class MarioNet(nn.Module):
+class GameModel(nn.Module):
     def __init__(self, num_inputs, num_actions) -> None:
         super().__init__()
         self.layers = nn.Sequential(

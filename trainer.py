@@ -1,17 +1,19 @@
-import torch, os, tqdm
+import torch, os, tqdm, functools
 import numpy as np
 import environment, models, utils, games
 from torch import nn
 from galois_common import gcutils
 
 class PPO:
-    def __init__(self, game) -> None:
+    def __init__(self, game_creator, game_arguments) -> None:
         self.skip = 4
-        self.game = game
-        self.folder = gcutils.join('checkpoints', game.spec.name)
+        self.game = game_creator(**game_arguments)
+        self.folder = gcutils.join('checkpoints', self.game.spec.name)
+        self.game_creator = game_creator
+        self.game_arguments = game_arguments
+        self.action_space = self.game.action_space.n
         gcutils.mkdir(self.folder)
-        self.train_env = environment.create_train_env(self.game, self.skip)
-        self.model = models.MarioNet(self.skip, self.train_env.action_space.n)
+        self.model = models.GameModel(self.skip, self.action_space)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
         self.criterion = Loss()
         self.logger = utils.MetricLogger(gcutils.join(self.folder, 'log.txt'))
@@ -34,10 +36,11 @@ class PPO:
 
     def _train_epoch(self, rounds, device):
         self.model.train()
+        env = environment.MultiTrainEnv(self.game_creator, self.game_arguments, functools.partial(self._sample, device=device))
         tq = tqdm.tqdm(range(rounds))
         for _ in tq:
             ref_model = self._create_reference_model(device)
-            samples = self.sample_game(self.train_env, device)
+            samples = env.get()
             states = torch.tensor(np.stack([x['state'] for x in samples], 0), device=device)
             actions = [x['action'] for x in samples]
             rewards = torch.tensor([x['reward'] for x in samples], device=device)
@@ -63,7 +66,7 @@ class PPO:
     def sample_game(self, env, device, min_length=10, max_length=200):
         state = env.reset()
         while True:
-            action = self._sample(env, state, device)
+            action = self._sample(state, device)
             state, info = env.collect(state, action)
             if self._game_finished(info): break
             if len(env.memory) >= 1000: break
@@ -71,7 +74,7 @@ class PPO:
         return env.memory[start:start+max_length]
 
     def _create_reference_model(self, device):
-        model = models.MarioNet(self.skip, self.train_env.action_space.n).to(device)
+        model = models.GameModel(self.skip, self.action_space).to(device)
         model.load_state_dict(self.model.state_dict())
         model.eval()
         return model
@@ -83,7 +86,7 @@ class PPO:
         env = environment.create_evaluate_env(self.game, video_path, self.skip)
         state = env.reset()
         while True:
-            action = self._sample(env, state, device)
+            action = self._sample(state, device)
             state, reward, info = env.step(action)
             self.logger.eval_step(reward)
             if self._game_finished(info): break
@@ -91,9 +94,9 @@ class PPO:
     def _game_finished(self, info):
         return info['state'] in ['success', 'fail']
 
-    def _sample(self, env, state, device=None):
+    def _sample(self, state, device=None):
         if self.model.training and np.random.ranf() < max(0.97 ** self.epoch, 0.1):
-            action = np.random.choice(env.action_space.n)
+            action = np.random.choice(self.action_space)
         else:
             state = torch.tensor(state[None, ...], device=device)
             logits, _ = self.model(state)
@@ -145,5 +148,5 @@ class Loss(nn.Module):
         return R, advantages, ref_log_prob
 
 if __name__ == '__main__':
-    ppo = PPO(games.create_mario_profile(1, 1))
-    ppo.train('cuda')
+    ppo = PPO(games.create_mario_profile, dict(world=1, stage=1))
+    ppo.train('cpu')
