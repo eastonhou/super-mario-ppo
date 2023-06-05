@@ -89,6 +89,8 @@ class PPO:
 
     @torch.inference_mode()
     def _sample(self, state, device=None):
+        if self.model.training and np.random.ranf() < 0.1:
+            action = np.random.choice(self.action_space)
         state = torch.tensor(state[None, ...], device=device)
         logits, value = self.model(state)
         logits = logits[0].softmax(-1)
@@ -142,6 +144,6 @@ class Loss(nn.Module):
 
 if __name__ == '__main__':
     opts = options.make_options(device='cuda')
-    ppo = PPO(games.create_mario_profile, dict(world=1, stage=1))
+    ppo = PPO(games.create_mario_profile, dict(world=8, stage=4))
     #ppo = PPO(games.create_breakout, {})
     ppo.train(opts.device)
