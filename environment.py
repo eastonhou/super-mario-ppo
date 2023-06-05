@@ -103,7 +103,7 @@ class TrainEnv:
         return self.env.memory
 
 class MultiTrainEnv:
-    def __init__(self, game_creator, game_arguments, sampler, parallelism=None, max_size=10) -> None:
+    def __init__(self, game_creator, game_arguments, sampler, parallelism=None, max_size=100) -> None:
         if parallelism is None: parallelism = os.cpu_count() // 4
         self.envs = [TrainEnv.remote(id, game_creator, game_arguments) for id in range(parallelism)]
         self.sampler = sampler

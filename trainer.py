@@ -2,7 +2,7 @@ import torch, os, tqdm, functools
 import numpy as np
 import environment, models, utils, games
 from torch import nn
-from galois_common import gcutils
+from galois_common import gcutils, options
 
 class PPO:
     def __init__(self, game_creator, game_arguments) -> None:
@@ -14,6 +14,7 @@ class PPO:
         self.action_space = self.game.action_space.n
         gcutils.mkdir(self.folder)
         self.model = models.GameModel(self.skip, self.action_space)
+        self.model.share_memory()
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
         self.criterion = Loss()
         self.logger = utils.MetricLogger(gcutils.join(self.folder, 'log.txt'))
@@ -22,9 +23,10 @@ class PPO:
     def train(self, device):
         self.model.to(device)
         self.criterion.to(device)
+        env = environment.MultiTrainEnv(self.game_creator, self.game_arguments, functools.partial(self._sample, device=device))
         while True:
             self.logger.new_epoch()
-            self._train_epoch(100, device)
+            self._train_epoch(env, 100, device)
             self._eval_epoch(device)
             self.logger.end_epoch(self.epoch)
             if self.logger.rewards > self.model.rewards:
@@ -34,9 +36,8 @@ class PPO:
             else:
                 print(f'MODEL CONTINUE [reward={self.logger.rewards:>.2F}/{self.model.rewards:>.2F}]')
 
-    def _train_epoch(self, rounds, device):
+    def _train_epoch(self, env, rounds, device):
         self.model.train()
-        env = environment.MultiTrainEnv(self.game_creator, self.game_arguments, functools.partial(self._sample, device=device))
         tq = tqdm.tqdm(range(rounds))
         for _ in tq:
             ref_model = self._create_reference_model(device)
@@ -62,16 +63,6 @@ class PPO:
             self.optimizer.step()
             total_loss += loss.item()
         return total_loss
-
-    def sample_game(self, env, device, min_length=10, max_length=200):
-        state = env.reset()
-        while True:
-            action = self._sample(state, device)
-            state, info = env.collect(state, action)
-            if self._game_finished(info): break
-            if len(env.memory) >= 1000: break
-        start = np.random.randint(0, max(len(env.memory) - min_length, 0) + 1)
-        return env.memory[start:start+max_length]
 
     def _create_reference_model(self, device):
         model = models.GameModel(self.skip, self.action_space).to(device)
@@ -148,5 +139,6 @@ class Loss(nn.Module):
         return R, advantages, ref_log_prob
 
 if __name__ == '__main__':
+    opts = options.make_options(device='cuda')
     ppo = PPO(games.create_mario_profile, dict(world=1, stage=1))
-    ppo.train('cuda')
+    ppo.train(opts.device)

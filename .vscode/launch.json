@@ -18,6 +18,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/trainer.py",
             "console": "integratedTerminal",
+            "args": ["--device", "cpu"],
             "justMyCode": true
         }
     ]
