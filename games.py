@@ -60,10 +60,10 @@ class BreakoutReward(gym.Wrapper):
         return state, info
     
 def create_mario_profile(world, stage):
-    from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+    from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
     #action_list = [['NOOP'], ['A', 'B'], ['left', 'B'], ['left', 'A', 'B'], ['right', 'B'], ['right', 'A', 'B']]
     env = gym_super_mario_bros.make(f'SuperMarioBros-{world}-{stage}-v0', render_mode='rgb', apply_api_compatibility=True)
-    env = JoypadSpace(env, SIMPLE_MOVEMENT)
+    env = JoypadSpace(env, COMPLEX_MOVEMENT)
     env = MarioReward(env, world, stage)
     return env
 
