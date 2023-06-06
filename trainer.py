@@ -35,7 +35,7 @@ class PPO:
                 self.epoch += 1
                 print(f'MODEL SAVED [reward={self.model.rewards:>.2F}]')
             else:
-                self._save('model.current.ckpt')
+                #self._save('model.current.ckpt')
                 print(f'MODEL CONTINUE [reward={self.logger.rewards:>.2F}/{self.model.rewards:>.2F}]')
 
     def _train_epoch(self, env, rounds, batch_size, device):
@@ -158,6 +158,6 @@ class Loss(nn.Module):
 
 if __name__ == '__main__':
     opts = options.make_options(device='cuda')
-    #ppo = PPO(games.create_mario_profile, dict(world=7, stage=4), 4)
-    ppo = PPO(games.create_breakout, {}, 2)
+    ppo = PPO(games.create_mario_profile, dict(world=5, stage=4), 2)
+    #ppo = PPO(games.create_breakout, {}, 2)
     ppo.train(opts.device)
