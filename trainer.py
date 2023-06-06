@@ -5,8 +5,8 @@ from torch import nn
 from galois_common import gcutils, options
 
 class PPO:
-    def __init__(self, game_creator, game_arguments) -> None:
-        self.skip = 4
+    def __init__(self, game_creator, game_arguments, skip) -> None:
+        self.skip = skip
         self.game = game_creator(**game_arguments)
         self.folder = gcutils.join('checkpoints', self.game.spec.name)
         self.game_creator = game_creator
@@ -24,7 +24,7 @@ class PPO:
     def train(self, device):
         self.model.to(device)
         self.criterion.to(device)
-        env = environment.MultiTrainEnv(self.game_creator, self.game_arguments, functools.partial(self._sample, device=device))
+        env = environment.MultiTrainEnv(self.game_creator, self.game_arguments, functools.partial(self._sample, device=device), self.skip)
         while True:
             self.logger.new_epoch()
             self._train_epoch(env, 100, device)
@@ -144,6 +144,6 @@ class Loss(nn.Module):
 
 if __name__ == '__main__':
     opts = options.make_options(device='cuda')
-    ppo = PPO(games.create_mario_profile, dict(world=8, stage=4))
-    #ppo = PPO(games.create_breakout, {})
+    #ppo = PPO(games.create_mario_profile, dict(world=7, stage=4), 4)
+    ppo = PPO(games.create_breakout, {}, 2)
     ppo.train(opts.device)
