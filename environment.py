@@ -172,7 +172,9 @@ class MultiTrainEnv:
 
     def _random_size(self, samples, min_size=20, max_size=300):
         start = np.random.randint(0, max(len(samples) - min_size, 0) + 1)
-        return samples[start:start+max_size]
+        end = np.random.randint(min(start + min_size, len(samples)), len(samples) + 1)
+        end = min(end, start + max_size)
+        return samples[start:end]
 
 def run_parallel(target, *args):
     import threading
