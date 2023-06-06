@@ -35,6 +35,7 @@ class PPO:
                 self.epoch += 1
                 print(f'MODEL SAVED [reward={self.model.rewards:>.2F}]')
             else:
+                self._save('model.current.ckpt')
                 print(f'MODEL CONTINUE [reward={self.logger.rewards:>.2F}/{self.model.rewards:>.2F}]')
 
     def _train_epoch(self, env, rounds, batch_size, device):
@@ -120,8 +121,8 @@ class PPO:
         ckpt = self.model.load(path)
         self.epoch = ckpt['epoch'] + 1
 
-    def _save(self):
-        path = gcutils.join(self.folder, 'model.ckpt')
+    def _save(self, name='model.ckpt'):
+        path = gcutils.join(self.folder, name)
         self.model.save(path, epoch=self.epoch, rewards=self.logger.rewards)
 
 class Loss(nn.Module):
