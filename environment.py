@@ -131,10 +131,8 @@ class TrainEnv:
     def step(self, state, action):
         return self.id, self.env.collect(state, action)
 
-    def reset(self, state=None):
-        _state = self.env.reset()
-        if state is None: state = _state
-        return self.id, (state, {'state': 'reset'})
+    def reset(self):
+        return self.id, (self.env.reset(), {'state': 'reset'})
 
     def collect(self):
         return self.env.memory
@@ -158,11 +156,7 @@ class MultiTrainEnv:
                     samples = ray.get(self.envs[id].collect.remote())
                     samples = self._random_size(samples)
                     self.put(samples)
-                    if np.random.ranf() < 0.8:
-                        sample = np.random.choice(samples[:-1])
-                        tasks[id] = self.envs[id].reset.remote(sample['state'])
-                    else:
-                        tasks[id] = self.envs[id].reset.remote()
+                    tasks[id] = self.envs[id].reset.remote()
                 else:
                     action = self.sampler(state)
                     tasks[id] = self.envs[id].step.remote(state, action)
