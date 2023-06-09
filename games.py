@@ -24,7 +24,7 @@ class MarioReward(gym.Wrapper):
         return state, info
 
     def _compute_reward(self, reward, done, info):
-        reward += (info["score"] - self.curr_score) / 20
+        reward += (info["score"] - self.curr_score) / 5
         if self.status == 'small' and info['status'] == 'big': reward += 20
         elif self.status == 'big' and info['status'] == 'small': reward -= 20
         if done:

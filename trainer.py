@@ -143,7 +143,7 @@ class Loss(nn.Module):
             ratio.mul(pack['advantages']),
             torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon).mul(pack['advantages'])).mean()
         #critic_loss = (R.sub(values[:n]) ** 2).mean()
-        critic_loss = nn.functional.smooth_l1_loss(pack['R'], values, reduction='mean')
+        critic_loss = nn.functional.smooth_l1_loss(values, pack['R'], reduction='mean')
         entropy_loss = -new_log_probs.exp().mul(new_log_probs).sum(-1).mean()
         loss = actor_loss + critic_loss - self.beta * entropy_loss
         return loss
@@ -158,6 +158,7 @@ class Loss(nn.Module):
 
 if __name__ == '__main__':
     opts = options.make_options(device='cuda')
-    ppo = PPO(games.create_mario_profile, dict(world=5, stage=4), 4)
+    ppo = PPO(games.create_mario_profile, dict(world=6, stage=3), 4)
     #ppo = PPO(games.create_breakout, {}, 2)
+    #ppo = PPO(games.create_flappy_bird, {}, 4)
     ppo.train(opts.device)
