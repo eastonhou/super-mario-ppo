@@ -158,7 +158,7 @@ class Loss(nn.Module):
 
 if __name__ == '__main__':
     opts = options.make_options(device='cuda')
-    ppo = PPO(games.create_mario_profile, dict(world=6, stage=3), 4)
+    ppo = PPO(games.create_mario_profile, dict(world=1, stage=1), 4)
     #ppo = PPO(games.create_breakout, {}, 2)
     #ppo = PPO(games.create_flappy_bird, {}, 4)
     ppo.train(opts.device)

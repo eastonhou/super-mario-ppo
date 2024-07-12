@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "farama",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/farama.py",
             "console": "integratedTerminal",
@@ -14,7 +14,7 @@
         },
         {
             "name": "ppo",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/trainer.py",
             "console": "integratedTerminal",
