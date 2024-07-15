@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from galois_common import gcutils
+from common import gcutils
 
 class MetricLogger:
     def __init__(self, path):
@@ -9,21 +9,21 @@ class MetricLogger:
     def train_step(self, loss):
         self.ep_losses.append(loss)
 
-    def eval_step(self, reward):
-        self.ep_rewards.append(reward)
+    def eval_step(self, score):
+        self.scores.append(score)
 
     def new_epoch(self):
-        self.ep_rewards = []
+        self.scores = []
         self.ep_losses = []
 
     def end_epoch(self, epoch):
-        message = f'[epoch {epoch}] loss={np.mean(self.ep_losses):>.2F} reward={self.rewards:>.2F} step={len(self.ep_rewards)}'
+        message = f'[epoch {epoch}] loss={np.mean(self.ep_losses):>.2F} scores={self.scores[-1]:>.2F} step={len(self.scores)}'
         lines = list(gcutils.read_all_lines(self.path))
         lines.append(message)
         gcutils.write_all_lines(self.path, lines)
 
     @property
-    def rewards(self): return sum(self.ep_rewards)
+    def score(self): return self.scores[-1]
 
 class Monitor:
     def __init__(self, width, height, saved_path):

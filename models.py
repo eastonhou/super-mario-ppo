@@ -5,13 +5,13 @@ class GameModel(nn.Module):
     def __init__(self, num_inputs, num_actions) -> None:
         super().__init__()
         self.layers = nn.Sequential(
-            nn.Conv2d(num_inputs, 32, 3, stride=2, padding=1), nn.ReLU(inplace=True),
-            nn.Conv2d(32, 32, 3, stride=2, padding=1), nn.ReLU(inplace=True),
-            nn.Conv2d(32, 32, 3, stride=2, padding=1), nn.ReLU(inplace=True),
-            nn.Conv2d(32, 32, 3, stride=2, padding=1), nn.ReLU(inplace=True),
+            nn.Conv2d(num_inputs, 32, 3, stride=2, padding=1), nn.Mish(inplace=True),
+            nn.Conv2d(32, 64, 3, stride=2, padding=1), nn.Mish(inplace=True),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1), nn.Mish(inplace=True),
+            nn.Conv2d(128, 32, 3, stride=2, padding=1), nn.Mish(inplace=True),
             nn.Flatten(),
-            nn.Linear(1152, 512), nn.ReLU(inplace=True))
-        self.critic_linear = nn.Linear(512, 1)
+            nn.Linear(1152, 512), nn.LayerNorm(512))
+        self.critic_linear = nn.Sequential(nn.Linear(512, 1))
         self.actor_linear = nn.Linear(512, num_actions)
         self._initialize_weights()
         self.rewards = -100000
