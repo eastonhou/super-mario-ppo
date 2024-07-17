@@ -108,25 +108,25 @@ class FrameRenderer:
     def _render_value(self, image, x0, y0, score):
         cv2.putText(image, f'value: {self.value:>.2F}/{score:>.2F}', (x0, y0), cv2.FONT_HERSHEY_SIMPLEX, 0.3, color=(255, 0, 0))
 
-def create_train_env(env, skip):
-    env = FrameStack(env, num_stack=skip)
+def create_train_env(env, stack, skip):
+    env = FrameStack(env, num_stack=stack)
     env = SkipFrame(env, skip=skip)
     env = FrameConverter(env, NORM_IMAGE_SIZE)
     env = Replay(env)
     return env
 
-def create_evaluate_env(env, monitor_path, skip, render_callback=None):
+def create_evaluate_env(env, monitor_path, stack, skip, render_callback=None):
     env = Recorder(env, monitor_path, render_callback)
-    env = FrameStack(env, num_stack=skip)
+    env = FrameStack(env, num_stack=stack)
     env = SkipFrame(env, skip=skip)
     env = FrameConverter(env, NORM_IMAGE_SIZE)
     return env
 
 @ray.remote
 class TrainEnv:
-    def __init__(self, id, creator, kwargs, skip) -> None:
+    def __init__(self, id, creator, kwargs, stack, skip) -> None:
         game = creator(**kwargs)
-        self.env = create_train_env(game, skip)
+        self.env = create_train_env(game, stack, skip)
         self.id = id
 
     def step(self, state, action):
@@ -139,9 +139,9 @@ class TrainEnv:
         return self.env.memory
 
 class MultiTrainEnv:
-    def __init__(self, game_creator, game_arguments, sampler, skip, parallelism=None, max_size=100) -> None:
+    def __init__(self, game_creator, game_arguments, sampler, stack, skip, parallelism=None, max_size=100) -> None:
         if parallelism is None: parallelism = os.cpu_count() // 4
-        self.envs = [TrainEnv.remote(id, game_creator, game_arguments, skip) for id in range(parallelism)]
+        self.envs = [TrainEnv.remote(id, game_creator, game_arguments, stack, skip) for id in range(parallelism)]
         self.sampler = sampler
         self.queue = []
         self.max_size = max_size

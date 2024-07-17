@@ -12,7 +12,10 @@ class GameModel(nn.Module):
             nn.Flatten(),
             nn.Linear(1152, 512), nn.LayerNorm(512))
         self.critic_linear = nn.Sequential(nn.Linear(512, 1))
-        self.actor_linear = nn.Linear(512, num_actions)
+        self.actor_linear = nn.Sequential(
+            nn.Linear(512, num_actions),
+            nn.LogSoftmax(-1)
+        )
         self._initialize_weights()
         self.rewards = -100000
 
