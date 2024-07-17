@@ -1,6 +1,9 @@
+This is an application of PPO algorithm on the game Super Mario.
+
+[![Video Title](assets/gaming.png)](https://player.bilibili.com/player.html?aid=112804312974929)
 
 ## Prerequisites
-> pip install gym gym_super_mario_bros ale-py gym[accept-rom-license]
+> pip install -r requirements.txt
 
 ## Training
 > python trainer.py
@@ -17,5 +20,8 @@ checkpoints/[game-name]/video
 ## Switching a game
 Find the following code snippet in trainer.py, change the parameters as you wish.
 ```
-ppo = PPO(games.create_mario_profile, dict(world=1, stage=1), 4)
+ppo = PPO(games.create_mario_profile, dict(world=1, stage=1), 8, 4)
 ```
+
+## Training curve
+![training curve](assets/image.png)
