@@ -42,7 +42,7 @@ class BreakoutReward(gym.Wrapper):
         self.score += 1 if reward > 0 else 0
         score = self.score * 100 + info['lives'] * 50 + 1
         self.ttl += 1
-        return state, score / 100, done, trunk, info
+        return state, score / 50, done, trunk, info
 
     def reset(self):
         state, info = super().reset()

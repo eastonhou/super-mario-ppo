@@ -26,5 +26,5 @@ Find the following code snippet in trainer.py, change the parameters as you wish
 ppo = PPO(games.create_mario_profile, dict(world=1, stage=1), 8, 4)
 ```
 
-## Training curve
-![training curve](assets/image.png)
+## Training curves
+![training curves](assets/image.png)
