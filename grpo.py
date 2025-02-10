@@ -22,26 +22,17 @@ class Trainer(trainer_base.Reinforcement):
                 'actions': actions,
                 'rewards': rewards,
                 'scores': scores,
-                'advantages': advantages,
+                'advantages': self._normalize_advantages(advantages),
                 'ref_log_probs': ref_log_probs
             }
 
     def train_step(self, env, batch_size, device):
         batch = [self._precompute_step(env, device) for _ in range(batch_size)]
-        self._normalize_advantages(batch)
         loss = self._offline(batch)
         return loss
 
-    def _normalize_advantages(self, batch):
-        count = s1 = s2 = 0
-        for pack in batch:
-            s1 += pack['advantages'].sum()
-            s2 += pack['advantages'].square().sum()
-            count += pack['advantages'].numel()
-        avg = s1 / count
-        std = (s2 / count - avg ** 2) ** 0.5
-        for pack in batch:
-            pack['advantages'].sub_(avg).div_(std)
+    def _normalize_advantages(self, advantages):
+        return advantages.sub(advantages.mean()).div(advantages.std())
 
     def _offline(self, batch):
         total_loss = 0
@@ -67,7 +58,7 @@ class Trainer(trainer_base.Reinforcement):
         return model
 
 class Loss(nn.Module):
-    def __init__(self, gamma=1, lmbda=0.975, epsilon=0.2, beta=0.04) -> None:
+    def __init__(self, gamma=1, lmbda=0.975, epsilon=0.2, beta=1) -> None:
         super().__init__()
         self.gamma = gamma
         self.lmbda = lmbda
