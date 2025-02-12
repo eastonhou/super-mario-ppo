@@ -18,7 +18,16 @@
             "request": "launch",
             "program": "${workspaceFolder}/trainer.py",
             "console": "integratedTerminal",
-            "args": ["--device", "cuda"],
+            "args": ["--device", "cuda", "--rl", "ppo"],
+            "justMyCode": true
+        },
+        {
+            "name": "grpo",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/trainer.py",
+            "console": "integratedTerminal",
+            "args": ["--device", "cpu", "--rl", "grpo"],
             "justMyCode": true
         }
     ]

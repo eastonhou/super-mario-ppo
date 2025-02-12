@@ -58,12 +58,13 @@ class Trainer(trainer_base.Reinforcement):
         return model
 
 class Loss(nn.Module):
-    def __init__(self, gamma=1, lmbda=0.975, epsilon=0.2, beta=1) -> None:
+    def __init__(self, gamma=1, lmbda=0.975, epsilon=0.2, beta=0.04, c2=0.1) -> None:
         super().__init__()
         self.gamma = gamma
         self.lmbda = lmbda
         self.beta = beta
         self.epsilon = epsilon
+        self.c2 = c2
         coef = torch.pow(gamma * lmbda, torch.cumsum(torch.triu(torch.ones(512, 512), 1), -1))
         self.register_buffer('coef', torch.triu(coef, 0))
 
@@ -84,13 +85,19 @@ class Loss(nn.Module):
             torch.clamp(ratio, lb, ub).mul(pack['advantages'])).mean()
         # 计算散度
         dkl = (ratio - 1).square().div(2).mean()
-        loss = actor_loss + self.beta * dkl
+        # 计算策略概率自身的熵
+        entropy_loss = -new_log_probs.exp().mul(new_log_probs).sum(-1).mean()
+        loss = actor_loss + self.beta * dkl - self.c2 * entropy_loss
         return {
             'loss': loss,
             'actor': actor_loss.item(),
             'dkl': dkl.item(),
             'steps': n
         }
+
+    def _change_lr(self):
+        super()._change_lr()
+        self.criterion.c2 *= 0.99
 
     def precomute(self, ref_logits, ref_values, actions, rewards):
         n = ref_values.shape[0] - 1

@@ -7,8 +7,6 @@ class Trainer(trainer_base.Reinforcement):
     def __init__(self, game_creator, game_arguments, stack, skip) -> None:
         super().__init__('ppo', game_creator, game_arguments, stack, skip)
         self.criterion = Loss()
-        #self.loss_dict = collections.defaultdict(lambda: 0)
-        #self.lr = 2.5e-4
 
     def _precompute_step(self, env, device):
         samples = env.get()
